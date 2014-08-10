@@ -30,7 +30,6 @@ public class RaidKey {
 	public int getValidation() {
 		return this.validation;
 	}
-
 	public RaidKey(ItemStack stack, Town town, Player player) {
 		Random rand = new Random();
 		this.setKeyItemStack(stack);
@@ -53,6 +52,9 @@ public class RaidKey {
 		meta.setLore(lore);
 		stack.setItemMeta(meta);
 		WarManager.keys.add(this);
+		keyHolder.sendMessage(ChatColor.GREEN + "" + ChatColor.BOLD + "YOU GOT A RAID KEY TO RAID " + ChatColor.RED + town.getName() + ChatColor.GREEN +  " CHECK YOUR INVENTORY!");
+		keyHolder.sendMessage(ChatColor.GREEN + "Say " + ChatColor.RED + "/raid " + ChatColor.GREEN +  "to raid the enemy town!");
+		keyHolder.sendMessage(ChatColor.GREEN + "Say " + ChatColor.RED + "/rules raid " + ChatColor.GREEN +  "for more info.");
 	}
 
 	private void setKeyItemStack(ItemStack stack) {
@@ -122,7 +124,9 @@ public class RaidKey {
 									for (Resident res : town.getResidents()) {
 										Player member = Bukkit.getPlayer(res
 												.getName());
-										member.sendMessage("§cThe raid on your town has stopped.");
+										if (member.isOnline()) {
+											member.sendMessage("§cThe raid on your town has stopped.");
+										}
 									}
 									keyHolder
 											.sendMessage("§cYour raid on§b: "
@@ -142,11 +146,13 @@ public class RaidKey {
 			}
 			if (found != 1) {
 				this.voidKey();
+				this.keyHolder.closeInventory();
+				WarManager.keys.remove(this);
 			}
 		}
 	}
 
-	private void voidKey() {
+	public void voidKey() {
 		this.setTimeLeft(0);
 	}
 

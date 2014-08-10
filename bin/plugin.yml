@@ -4,5 +4,6 @@ authors: [crehop, Young_Explicit]
 version: 0.1
 description: A plugin made by some Programming Bat
 commands:
+  checkkeys:
   raid:
-    description: Check Command
+  

@@ -49,11 +49,12 @@ public class TownyWars extends JavaPlugin {
 				try {
 					if (WarManager.getValidKey(p).getType() != Material.AIR) {
 						ItemStack key = WarManager.getValidKey(p);
-						WarManager.teleportToTown(
-								p,
-								WarManager.getRaidKey(Integer.parseInt(key
-										.getItemMeta().getLore().get(4)
-										.replace("§0", ""))));
+						try {
+							WarManager.teleportToTown(p,WarManager.getRaidKey(Integer.parseInt(key.getItemMeta().getLore().get(4).replace("§0", ""))));
+						} catch (Exception e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
 						return true;
 					} else {
 						p.sendMessage("§cYou do not have a valid Raid Key.");
@@ -62,10 +63,29 @@ public class TownyWars extends JavaPlugin {
 					p.sendMessage("§cCould not initiate raid.");
 					e.printStackTrace();
 					return false;
-				} catch (NotRegisteredException e) {
+				} catch (Exception e) {
 					p.sendMessage("§cThat town is not registered.");
 					e.printStackTrace();
 					return false;
+				}
+			}
+			else if (commandLabel.equalsIgnoreCase("checkkeys") && p.isOp()) {
+				WarListener.force = true;
+				p.sendMessage("§aNEXT KEY WILL BE FORCED");
+				p.sendMessage("§aCurrent Keys§b: " + WarManager.keys.size());
+				p.sendMessage("§aTotal Keys Created§b: " + WarManager.getKeysCreated());
+				for (RaidKey check: WarManager.keys) {
+					p.sendMessage("§c=============================================");
+					p.sendMessage("§aTown Name§b: " + check.getTownName());
+					p.sendMessage("§aKey Holder§b: " + check.getKeyHolder().getName());
+					p.sendMessage("§aTime Left§b: " + check.convertSecondsToMinutes(check.getTimeLeft()));
+					p.sendMessage("§aBlocks Left§b: " + check.getBlocksLeft());
+					p.sendMessage("§aItems Left§b: " + check.getItemsLeft());
+					p.sendMessage("§c=============================================");
+				}
+				p.sendMessage("Names Of KeyGetters:");
+				for(String check:WarManager.names){
+					p.sendMessage(check);
 				}
 			}
 		}

@@ -7,6 +7,7 @@ import java.util.ListIterator;
 import java.util.Random;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -35,14 +36,16 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.yi.acru.bukkit.Lockette.Lockette;
+import org.yi.acru.bukkit.Lockette.LocketteBlockListener;
 
-import com.palmergames.bukkit.towny.event.NationAddTownEvent;
-import com.palmergames.bukkit.towny.event.NationRemoveTownEvent;
-import com.palmergames.bukkit.towny.event.TownAddResidentEvent;
-import com.palmergames.bukkit.towny.event.TownRemoveResidentEvent;
-import com.palmergames.bukkit.towny.exceptions.NotRegisteredException;
+import com.palmergames.bukkit.blockqueue.BlockQueue;
+import com.palmergames.bukkit.towny.Towny;
+import com.palmergames.bukkit.towny.listeners.TownyBlockListener;
 import com.palmergames.bukkit.towny.object.Resident;
 import com.palmergames.bukkit.towny.object.Town;
+import com.palmergames.bukkit.towny.object.TownBlock;
+import com.palmergames.bukkit.towny.object.TownyPermission;
 import com.palmergames.bukkit.towny.object.TownyUniverse;
 
 public class WarListener implements Listener {
@@ -51,6 +54,7 @@ public class WarListener implements Listener {
 	public static HashMap<Player, Integer> currentKills = new HashMap<Player, Integer>();
 	public static ArrayList<Material> blockedMaterials = new ArrayList<Material>();
 	public static ArrayList<Player> isBeingRaided = new ArrayList<Player>();
+	public static boolean force = false;
 
 	public static void initBlockedMats() {
 		blockedMaterials.add(Material.CHEST);
@@ -60,45 +64,58 @@ public class WarListener implements Listener {
 	}
 
 	@EventHandler
-	public void inventoryMoveEvent(PlayerGameModeChangeEvent e)
-			throws NotRegisteredException {
-		if (WarManager.isBeingRaided(e.getPlayer())) {
-			e.setCancelled(true);
-			e.getPlayer().sendMessage("§cYou can not change gamemodes while being raided.");
+	public void inventoryMoveEvent(InventoryClickEvent e) {
+		if (e.getInventory().getItem(e.getSlot()) != null && e.getSlot() < 44 && e.getSlot() > 0) {
+			if (e.getInventory().getItem(e.getSlot()).hasItemMeta()) {
+				if (e.getInventory().getItem(e.getSlot()).getItemMeta().hasDisplayName()) {
+					if (e.getInventory().getItem(e.getSlot()).getItemMeta().getDisplayName().contains("RAID KEY!")) {
+						e.setCancelled(true);
+						Player p = (Player) e.getWhoClicked();
+						p.updateInventory();
+					}
+				}
+			}
+		}
+	}
+	
+	@EventHandler
+	public void gameChangeEvent(PlayerGameModeChangeEvent e){
+		try {
+			if (WarManager.isBeingRaided(e.getPlayer())) {
+				e.setCancelled(true);
+				e.getPlayer().sendMessage("§cYou can not change gamemodes while being raided.");
+			}
+		} catch (Exception e1) {
 		}
 	}
 	@EventHandler
-	public void PlayerToggleFlightEventent(PlayerToggleFlightEvent e)
-			throws NotRegisteredException {
+	public void playerToggleFlightEventent(PlayerToggleFlightEvent e){
 		if (e.getPlayer().getWorld().getName() != "world") {
-			if (WarManager.isBeingRaided(e.getPlayer())) {
-				e.setCancelled(true);
-				e.getPlayer().sendMessage("§cYou can not fly while being raided.");
+			try {
+				if (WarManager.isBeingRaided(e.getPlayer())) {
+					e.setCancelled(true);
+					e.getPlayer().sendMessage("§cYou can not fly while being raided.");
+				}
+			} catch (Exception e1) {
 			}
 		}
 	}
 
 	@EventHandler(priority = EventPriority.HIGH)
-	public void inventoryMoveEvent(InventoryClickEvent e) {
+	public void inventoryClickEvent(InventoryClickEvent e) {
 		if (!(e.getInventory().getType() == InventoryType.PLAYER)) {
 			ItemStack item = e.getInventory().getItem(e.getSlot());
 			if ((item != null) && item.hasItemMeta()) {
 				if (item.getItemMeta().hasDisplayName()) {
 					if (item.getItemMeta().getDisplayName().contains("Raid Key")) {
-						if (item.getItemMeta().hasLore()) {
-							if (WarManager.checkValidation(Integer.parseInt(item.getItemMeta().getLore().get(4).replace("§0", "")))) {
-								e.setCancelled(true);
-//										p.sendMessage("§cYour raid key was destroyed by being put in a chest.");
-//										item.getItemMeta().setDisplayName("§5§lWar Trophy");
-//										item.getItemMeta().getLore().set(4, "§cExpired");
-//										p.closeInventory();
-								}
-							}
-						}
+						e.setCancelled(true);
+						Player p = (Player) e.getWhoClicked();
+						p.updateInventory();
 					}
 				}
 			}
 		}
+	}
 
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
 	public void chestCheckEvent(InventoryClickEvent e) {
@@ -131,7 +148,7 @@ public class WarListener implements Listener {
 												split[i] = split[i].replace(first,Character.toUpperCase(first));
 											}
 											if (member.isOnline()) {
-												member.sendMessage(p.getDisplayName() + " §chas taken an item from a chest!"
+												member.sendMessage(p.getDisplayName() + " §chas taken " + e.getCurrentItem().getType() +" from a chest!"
 														+ "\n§aItem§b: " + string
 														+ "\n§aLocation§b:"
 														+ " §cX§b: " + p.getLocation().getBlockX()
@@ -148,8 +165,7 @@ public class WarListener implements Listener {
 								}
 							}
 						}
-					} catch (NotRegisteredException e1) {
-						e1.printStackTrace();
+					} catch (Exception e1) {
 					}
 				}
 			}
@@ -176,6 +192,7 @@ public class WarListener implements Listener {
 									if (key.getItemsLeft() > 0) {
 										key.minusItemsLeft();
 										e.setCancelled(false);
+										p.openInventory(dchest.getInventory());
 										Effects.openChestEffect(p.getLocation());
 										for (Resident res : town.getResidents()) {
 											Player member = Bukkit.getPlayer(res.getName());
@@ -203,14 +220,13 @@ public class WarListener implements Listener {
 								}
 							}
 						}
-					} catch (NotRegisteredException e1) {
-						e1.printStackTrace();
+					} catch (Exception e1) {
 					}
 				}
 			}
 		}
 	}
-
+	
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
 	public void chest(PlayerInteractEvent e) {
 		Block clicked = e.getClickedBlock();
@@ -234,7 +250,9 @@ public class WarListener implements Listener {
 												+ ", §cZ§b: " + p.getLocation().getBlockZ());
 									}
 									Chest chest = (Chest) clicked.getLocation().getBlock().getState();
+									e.setCancelled(false);
 									p.openInventory(chest.getInventory());
+									p.sendMessage("Bypassing Chest Security");
 								} else {
 									p.sendMessage("§cYou cannot loot anymore items.");
 									e.setCancelled(true);
@@ -246,8 +264,7 @@ public class WarListener implements Listener {
 							e.setCancelled(true);
 						}
 					}
-				} catch (NotRegisteredException e1) {
-					e1.printStackTrace();
+				} catch (Exception e1) {
 				}
 			}
 		}
@@ -284,12 +301,10 @@ public class WarListener implements Listener {
 						}
 					}
 				}
-			} catch (NotRegisteredException e1) {
-				e1.printStackTrace();
+			} catch (Exception e1) {
 			}
 		}
 	}
-
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
 	public void BlockPlaceEvent(BlockPlaceEvent e) {
 		Block block = e.getBlock();
@@ -299,43 +314,40 @@ public class WarListener implements Listener {
 				Town town = TownyUniverse.getDataSource().getTown(TownyUniverse.getTownName(block.getLocation()));
 				if (WarManager.getValidKey(p).getType() != Material.AIR) {
 					RaidKey key = WarManager.getRaidKey(Integer.parseInt(WarManager.getValidKey(p).getItemMeta().getLore().get(4).replace("§0", "")));
-					if (TownyUniverse.getTownName(block.getLocation())
-							.equalsIgnoreCase(key.getTownName())) {
+					if (TownyUniverse.getTownName(block.getLocation()).equalsIgnoreCase(key.getTownName())) {
 						if (key.getBlocksLeft() > 0) {
-							e.setCancelled(false);
-							Block toChange = e.getBlock();
-							toChange.setType(e.getBlockPlaced().getType());
-							key.minusBlock();
-							Effects.PlaceBlockEffect(p.getLocation());
+							if (!blockedMaterials.contains(block.getType())) {
+								Effects.breakBlockEffect(p.getLocation());
+								key.minusBlock();
+								e.setCancelled(false);
+								e.setBuild(true);
+							}
 							for (Resident res : town.getResidents()) {
 								Player member = Bukkit.getPlayer(res.getName());
 								if (member.isOnline()) {
 									member.sendMessage(p.getDisplayName() + " §chas placed a block in your Town!"
 											+ "\n§aLocation§b:" + " §cX§b: " + p.getLocation().getBlockX()
-											+ ", §cY§b: "
-											+ p.getLocation().getBlockY()
-											+ ", §cZ§b: "
-											+ p.getLocation().getBlockZ());
+											+ ", §cY§b: " + p.getLocation().getBlockY()
+											+ ", §cZ§b: " + p.getLocation().getBlockZ());
 								}
 							}
 						} else {
-							p.sendMessage("§cYour Raid Key has no more Placeable Blocks left.");
+							p.sendMessage("§cYour Raid Key has no more Breakable Blocks left.");
 						}
 					}
 				}
-			} catch (NotRegisteredException e1) {
-				e1.printStackTrace();
+			} catch (Exception e1) {
 			}
 		}
 	}
-
+	
 	@EventHandler
 	public void inventoryDropEvent(PlayerDropItemEvent e) {
 		ItemStack drop = e.getItemDrop().getItemStack();
 		if (drop.hasItemMeta()) {
 			if (drop.getItemMeta().hasDisplayName()) {
 				if (drop.getItemMeta().getDisplayName().contains("Raid Key")) {
-					if (drop.getItemMeta().hasLore()) {
+					if (drop.getItemMeta().hasLore() && drop.getItemMeta().getLore().size() > 4) {
 						if (WarManager.checkValidation(Integer.parseInt(drop.getItemMeta().getLore().get(4).replace("§0", "")))) {
 							e.setCancelled(true);
 						}
@@ -366,38 +378,44 @@ public class WarListener implements Listener {
 	public void keyGeneration(PlayerDeathEvent e) {
 		Player killed = e.getEntity();
 		Random rand = new Random();
-		if (killed.getKiller() instanceof Player && rand.nextInt(20) > 10) {
+		int random = rand.nextInt(100);
+		if(WarListener.force == true){
+			random = 100;
+			WarListener.force = false;
+		}
+		if (killed.getKiller() instanceof Player &&  random >= 95) {
 			Player killer = killed.getKiller();
-			try {
-				Resident killedRes = TownyUniverse.getDataSource().getResident(killed.getName());
-				Resident killerRes = TownyUniverse.getDataSource().getResident(killer.getName());
-				if (killedRes.hasTown() && killerRes.hasTown()) {
-					if (killedRes.getTown().getName() != killerRes.getTown().getName()) {
-						if ((killedRes.getTown().hasNation() == true) && (killerRes.getTown().hasNation() == true)) {
-							if (killedRes.getTown().getNation().getName() != killerRes.getTown().getNation().getName()) {
-								// Add percentage to get a raid key.
-								ItemStack key = new ItemStack(Material.GOLD_NUGGET);
-								new RaidKey(key, killedRes.getTown(), killer);
-								killer.getInventory().addItem(key);
-								Town town = TownyUniverse.getDataSource().getTown(WarManager.getKey(key).getTownName());
-								for (Resident res : town.getResidents()) {
-									Player member = Bukkit.getPlayer(res.getName());
-									if (member.isOnline()) {
-										member.sendMessage("§cYour town is currently being raided by " + killer.getDisplayName() + "§c.");
-										member.setGameMode(GameMode.SURVIVAL);
-										member.setFlying(false);
+				try {
+					if (WarManager.isRaiding(killer) == false) {
+						Resident killedRes = TownyUniverse.getDataSource().getResident(killed.getName());
+						Resident killerRes = TownyUniverse.getDataSource().getResident(killer.getName());
+						if (killedRes.hasTown() && killerRes.hasTown()) {
+							if (killedRes.getTown().getName() != killerRes.getTown().getName()) {
+								if ((killedRes.getTown().hasNation() == true) && (killerRes.getTown().hasNation() == true)) {
+									if (killedRes.getTown().getNation().getName() != killerRes.getTown().getNation().getName()) {
+										// Add percentage to get a raid key.
+										ItemStack key = new ItemStack(Material.GOLD_NUGGET);
+										new RaidKey(key, killedRes.getTown(), killer);
+										killer.getInventory().addItem(key);
+										Town town = TownyUniverse.getDataSource().getTown(WarManager.getKey(key).getTownName());
+										for (Resident res : town.getResidents()) {
+											Player member = Bukkit.getPlayer(res.getName());
+											if (member.isOnline()) {
+												member.sendMessage("§cYour town is currently being raided by " + killer.getDisplayName() + "§c.");
+												member.setGameMode(GameMode.SURVIVAL);
+												member.setFlying(false);
+											}
+										}
+										Bukkit.broadcastMessage(killer.getDisplayName() + " §chas picked up a Raid Key from killing §r" + killed.getDisplayName()
+												+ "\n§cTown§b: " + town.getName()
+												+ " §cis Under-Attack!");
 									}
 								}
-								Bukkit.broadcastMessage(killer.getDisplayName() + " §chas picked up a Raid Key from killing §r" + killed.getDisplayName()
-										+ "\n§cTown§b: " + town.getName()
-										+ " §cis Under-Attack!");
 							}
 						}
 					}
+				} catch (Exception e1) {
 				}
-			} catch (NotRegisteredException e1) {
-				e1.printStackTrace();
-			}
 		}
 	}
 
@@ -408,6 +426,14 @@ public class WarListener implements Listener {
 			e.setCancelled(true);
 		}
 	}
+    public void onPreCommand(PlayerCommandPreprocessEvent event) {
+    	Player player = event.getPlayer();
+    	String message = event.getMessage();
+    	if(message.startsWith("/") && message.contains(":")) {
+    		event.setCancelled(true);
+    		player.sendMessage(ChatColor.RED + "DO NOT TRY TO CIRCUMVENT COMMAND BLOCKING!");
+    	}
+    }
 
 	@EventHandler
 	public void onTownChange(PlayerCommandPreprocessEvent e) {
@@ -424,8 +450,7 @@ public class WarListener implements Listener {
 					p.sendMessage("§cYou can not change PvP in your town while being raided.");
 				}
 			}
-		} catch (NotRegisteredException e1) {
-			e1.printStackTrace();
+		} catch (Exception e1) {
 		}
 	}
 	@EventHandler
@@ -437,7 +462,7 @@ public class WarListener implements Listener {
 		for (ItemStack stack : event.getPlayer().getInventory()) {
 			if (stack != null) {
 				if (stack.hasItemMeta()) {
-					if (stack.getItemMeta().hasDisplayName() && stack.getItemMeta().hasLore()) {
+					if (stack.getItemMeta().hasDisplayName() && stack.getItemMeta().hasLore() && stack.getItemMeta().getLore().size() > 4) {
 						if(stack.getItemMeta().getDisplayName().contains("Raid Key")){
 							ItemMeta meta = stack.getItemMeta();
 							meta.setDisplayName("§5§lWar Trophy");
@@ -459,9 +484,11 @@ public class WarListener implements Listener {
 						if (stack.getItemMeta().hasDisplayName()) {
 							if (stack.getItemMeta().getDisplayName().contains("Raid Key")) {
 								RaidKey key = WarManager.getKey(stack);
-								key.voidKey();
-								if (WarManager.keys.contains(key)) {
-									WarManager.keys.remove(key);
+								if (key != null) {
+									key.voidKey();
+									if (WarManager.keys.contains(key)) {
+										WarManager.keys.remove(key);
+									}
 								}
 							}
 						}
@@ -469,21 +496,5 @@ public class WarListener implements Listener {
 				}
 			}
 		}
-	}
-
-	@EventHandler
-	public void onResidentLeave(TownRemoveResidentEvent event) {
-	}
-
-	@EventHandler
-	public void onResidentAdd(TownAddResidentEvent event) {
-	}
-
-	@EventHandler
-	public void onNationAdd(NationAddTownEvent event) {
-	}
-
-	@EventHandler
-	public void onNationRemove(NationRemoveTownEvent event) {
 	}
 }

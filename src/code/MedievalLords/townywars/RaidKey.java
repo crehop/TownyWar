@@ -6,6 +6,7 @@ import java.util.Random;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -14,8 +15,6 @@ import com.palmergames.bukkit.towny.object.Resident;
 import com.palmergames.bukkit.towny.object.Town;
 
 public class RaidKey {
-	// TODO FIX DISPLAY NAME OF RAIDKEY AFTER EXPIRATION AND ON DROP/PICKUP IF
-	// INVALID
 	private int timeLeft;
 	private int blocksLeft;
 	private int itemsLeft;
@@ -32,10 +31,12 @@ public class RaidKey {
 	}
 	public RaidKey(ItemStack stack, Town town, Player player) {
 		Random rand = new Random();
+		WarManager.keyscreated++;
+		WarManager.names.add(player.getDisplayName());
 		this.setKeyItemStack(stack);
 		this.townname = town.toString();
 		this.timeLeft = 1800;
-		this.blocksLeft = 5;
+		this.blocksLeft = 75;
 		this.itemsLeft = 15;
 		this.setTown(town);
 		this.setKeyHolder(player);
@@ -52,9 +53,18 @@ public class RaidKey {
 		meta.setLore(lore);
 		stack.setItemMeta(meta);
 		WarManager.keys.add(this);
-		keyHolder.sendMessage(ChatColor.GREEN + "" + ChatColor.BOLD + "YOU GOT A RAID KEY TO RAID " + ChatColor.RED + town.getName() + ChatColor.GREEN +  " CHECK YOUR INVENTORY!");
-		keyHolder.sendMessage(ChatColor.GREEN + "Say " + ChatColor.RED + "/raid " + ChatColor.GREEN +  "to raid the enemy town!");
-		keyHolder.sendMessage(ChatColor.GREEN + "Say " + ChatColor.RED + "/rules raid " + ChatColor.GREEN +  "for more info.");
+		keyHolder.sendMessage("§aYou have recieved a Raid Key for §b" + town.getName() + "§a! Check your Inventory!");
+		keyHolder.sendMessage("§aType §b/raid §ato raid the enemy town!");
+		keyHolder.sendMessage("§aType §b/rules raid §afor more info.");
+		for (Resident res : town.getResidents()) {
+			Player member = Bukkit.getPlayer(res.getName());
+			if(member.getGameMode() != GameMode.SURVIVAL){
+				member.setGameMode(GameMode.SURVIVAL);
+			}
+			if (member.isOnline()) {
+				member.sendMessage("§cThe raid on your town has started!!!");
+			}
+		}
 	}
 
 	private void setKeyItemStack(ItemStack stack) {
@@ -106,7 +116,7 @@ public class RaidKey {
 			for (ItemStack stack : this.getKeyHolder().getInventory()) {
 				if (stack != null) {
 					if (stack.hasItemMeta()) {
-						if (stack.getItemMeta().hasLore()) {
+						if (stack.getItemMeta().hasLore() && stack.getItemMeta().getLore().size() > 4) {
 							if (stack.getItemMeta().getLore().get(4)
 									.contains(this.validation + "")) {
 								if (timeLeft <= 0) {
@@ -239,7 +249,7 @@ public class RaidKey {
 		return another;
 	}
 
-	public static String convertSecondsToMinutes(int time) {
+	public String convertSecondsToMinutes(int time) {
 		int minutes = time / 60;
 		int seconds = time % 60;
 		String disMinu = "" + minutes;

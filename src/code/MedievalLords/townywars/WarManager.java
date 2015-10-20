@@ -1,5 +1,6 @@
 package code.MedievalLords.townywars;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -9,7 +10,6 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-import com.palmergames.bukkit.towny.exceptions.NotRegisteredException;
 import com.palmergames.bukkit.towny.exceptions.TownyException;
 import com.palmergames.bukkit.towny.object.Nation;
 import com.palmergames.bukkit.towny.object.Resident;
@@ -17,7 +17,9 @@ import com.palmergames.bukkit.towny.object.Town;
 import com.palmergames.bukkit.towny.object.TownyUniverse;
 
 public class WarManager {
-
+	
+	public static List<String> names = new ArrayList<String>();
+	public static int keyscreated = 0;
 	public static List<RaidKey> keys = new CopyOnWriteArrayList<RaidKey>();
 
 	public static RaidKey getKey(ItemStack stack) {
@@ -30,13 +32,16 @@ public class WarManager {
 		}
 		return hold;
 	}
+	
+	public static int getKeysCreated() {
+		return keyscreated;
+	}
 
 	public static boolean isBeingRaided(Player player)
-			throws NotRegisteredException {
-		// TODO UNCOMMENT THIS
-		// if(player.getWorld().toString().equalsIgnoreCase("world")){
-		// return false;
-		// }
+			throws Exception {
+		if(player.getWorld().toString().equalsIgnoreCase("world")){
+			return false;
+		}
 		for (RaidKey check : WarManager.keys) {
 			for(Resident resident:check.getTown().getResidents()){
 				if(resident.getName().equals(player.getName())){
@@ -48,7 +53,10 @@ public class WarManager {
 	}
 
 	public static boolean isRaiding(Player player)
-			throws NotRegisteredException {
+			throws Exception {
+		if(player.getWorld().toString().equalsIgnoreCase("world")){
+			return false;
+		}
 		for (RaidKey check : WarManager.keys) {
 			if (player.getName().equals(check.getKeyHolder().getName())) {
 				return true;
@@ -87,10 +95,7 @@ public class WarManager {
 				}
 
 			}
-		} catch (NotRegisteredException e) {
-			e.printStackTrace();
-		} catch (TownyException e) {
-			e.printStackTrace();
+		} catch (Exception e) {
 		}
 		return false;
 	}
@@ -104,7 +109,7 @@ public class WarManager {
 						if (check.hasItemMeta()) {
 							if (check.getItemMeta().hasDisplayName()) {
 								if (check.getItemMeta().getDisplayName().contains("Raid Key")) {
-									if (check.getItemMeta().hasLore()) {
+									if (check.getItemMeta().hasLore() && check.getItemMeta().getLore().size() > 4) {
 										List<String> lore = ItemUtils.getLore(check);
 										if (!(lore.get(4).contains("Expired"))) {
 											if (checkValidation(Integer.parseInt(lore.get(4).replace("§0", "")))) {
@@ -127,7 +132,7 @@ public class WarManager {
 	}
 
 	public static void teleportToTown(Player p, RaidKey key)
-			throws NotRegisteredException {
+			throws Exception {
 		try {
 			if (Cooldowns.tryCooldown(p, "TeleportCooldown", 60000)) {
 				Town town = key.getTown();
@@ -145,7 +150,6 @@ public class WarManager {
 			}
 		} catch (TownyException e) {
 			p.sendMessage("§cThat town is not valid.");
-			e.printStackTrace();
 		}
 	}
 
